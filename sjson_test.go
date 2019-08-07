@@ -16,30 +16,30 @@ func TestInvalidPaths(t *testing.T) {
 	if err == nil || err.Error() != "path cannot be empty" {
 		t.Fatalf("expecting '%v', got '%v'", "path cannot be empty", err)
 	}
-	_, err = SetRaw("", "name.last.#", "")
-	if err == nil || err.Error() != "array access character not allowed in path" {
-		t.Fatalf("expecting '%v', got '%v'", "array access character not allowed in path", err)
-	}
-	_, err = SetRaw("", "name.last.\\1#", "")
-	if err == nil || err.Error() != "array access character not allowed in path" {
-		t.Fatalf("expecting '%v', got '%v'", "array access character not allowed in path", err)
-	}
-	_, err = SetRaw("", "name.las?t", "")
-	if err == nil || err.Error() != "wildcard characters not allowed in path" {
-		t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
-	}
-	_, err = SetRaw("", "name.la\\s?t", "")
-	if err == nil || err.Error() != "wildcard characters not allowed in path" {
-		t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
-	}
-	_, err = SetRaw("", "name.las*t", "")
-	if err == nil || err.Error() != "wildcard characters not allowed in path" {
-		t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
-	}
-	_, err = SetRaw("", "name.las\\a*t", "")
-	if err == nil || err.Error() != "wildcard characters not allowed in path" {
-		t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
-	}
+	//_, err = SetRaw("", "name.last.#", "")
+	//if err == nil || err.Error() != "array access character not allowed in path" {
+	//	t.Fatalf("expecting '%v', got '%v'", "array access character not allowed in path", err)
+	//}
+	//_, err = SetRaw("", "name.last.\\1#", "")
+	//if err == nil || err.Error() != "array access character not allowed in path" {
+	//	t.Fatalf("expecting '%v', got '%v'", "array access character not allowed in path", err)
+	//}
+	//_, err = SetRaw("", "name.las?t", "")
+	//if err == nil || err.Error() != "wildcard characters not allowed in path" {
+	//	t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
+	//}
+	//_, err = SetRaw("", "name.la\\s?t", "")
+	//if err == nil || err.Error() != "wildcard characters not allowed in path" {
+	//	t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
+	//}
+	//_, err = SetRaw("", "name.las*t", "")
+	//if err == nil || err.Error() != "wildcard characters not allowed in path" {
+	//	t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
+	//}
+	//_, err = SetRaw("", "name.las\\a*t", "")
+	//if err == nil || err.Error() != "wildcard characters not allowed in path" {
+	//	t.Fatalf("expecting '%v', got '%v'", "wildcard characters not allowed in path", err)
+	//}
 }
 
 const (
@@ -297,4 +297,263 @@ func TestDeleteDotKeyIssue19(t *testing.T) {
 	if string(json) != `{"data":{"key1":"value1"}}` {
 		t.Fatalf("expected '%v', got '%v'", `{"data":{"key1":"value1"}}`, json)
 	}
+}
+
+func TestSetArrayFirstMatch(t *testing.T) {
+	// You can also query an array for the first match by using #(...)
+
+	testRaw(t, setRaw, `{"people":[{"id": 1,"name":"carol"},{"id":2,"name":"bob"}]}`, `{"people":[{"id": 1,"name":"alice"},{"id":2,"name":"bob"}]}`, `people.#[id="1"].name`, `"carol"`)
+
+	json := `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Craig","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Murphy","age":47,"nets":["ig","tw"]}]}`
+
+	expected := `{"friends":[{"first":"Dale","last":"Doe","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Craig","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Murphy","age":47,"nets":["ig","tw"]}]}`
+	testRaw(t, setRaw, expected, json, `friends.#[first="Dale"].last`, `"Doe"`)
+
+	expected = `{"friends":[{"first":"Dale","last":"Doe","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Craig","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Murphy","age":47,"nets":["ig","tw"]}]}`
+	testRaw(t, setRaw, expected, json, `friends.#[first=="Dale"].last`, `"Doe"`)
+
+	expected = `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Doe","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Murphy","age":47,"nets":["ig","tw"]}]}`
+	testRaw(t, setRaw, expected, json, `friends.#[age>67].last`, `"Doe"`)
+
+}
+
+func TestSetArrayAllMatches(t *testing.T) {
+	// You can also query an array for find all matches with #(...)#
+
+	json := `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Craig","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Murphy","age":47,"nets":["ig","tw"]}]}`
+	expected := `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Doe","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Doe","age":47,"nets":["ig","tw"]}]}`
+	testRaw(t, setRaw, expected, json, `friends.#[age>45]#.last`, `"Doe"`)
+
+}
+
+func TestDeleteArrayFirstMatch(t *testing.T) {
+	// You can also query an array for the first match by using #(...)
+
+	testRaw(t, setDelete, `{"people":[{"id":2,"name":"bob"}]}`, `{"people":[{"id": 1,"name":"alice"},{"id":2,"name":"bob"}]}`, `people.#[id="1"]`, nil)
+
+}
+
+func TestDeleteArrayAllMatches(t *testing.T) {
+	// You can also query an array for find all matches with #(...)#
+
+	json := `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Craig","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Murphy","age":47,"nets":["ig","tw"]}]}`
+	expected := `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","age":68,"nets":["fb","tw"]},{"first":"Jane","age":47,"nets":["ig","tw"]}]}`
+	testRaw(t, setDelete, expected, json, `friends.#[age>45]#.last`, nil)
+
+}
+
+var basicJSON = `{"age":100, "name":{"here":"B\\\"R"},
+	"noop":{"what is a wren?":"a bird"},
+	"happy":true,"immortal":false,
+	"items":[1,2,3,{"tags":[1,2,3],"points":[[1,2],[3,4]]},4,5,6,7],
+	"arr":["1",2,"3",{"hello":"world"},"4",5],
+	"vals":[1,2,3,{"sadf":sdf"asdf"}],"name":{"first":"tom","last":null},
+	"created":"2014-05-16T08:28:06.989Z",
+	"loggy":{
+		"programmers": [
+    	    {
+    	        "firstName": "Brett",
+    	        "lastName": "McLaughlin",
+    	        "email": "aaaa",
+				"tag": "good"
+    	    },
+    	    {
+    	        "firstName": "Jason",
+    	        "lastName": "Hunter",
+    	        "email": "bbbb",
+				"tag": "bad"
+    	    },
+    	    {
+    	        "firstName": "Elliotte",
+    	        "lastName": "Harold",
+    	        "email": "cccc",
+				"tag":, "good"
+    	    },
+			{
+				"firstName": 1002.3,
+				"age": 101
+			}
+    	]
+	},
+	"lastly":{"yay":"final"}
+}`
+
+func TestBasic2(t *testing.T) {
+	/*
+		mtok := get(basicJSON, `loggy.programmers.#[age=101].firstName`)
+		if mtok.String() != "1002.3" {
+			t.Fatalf("expected %v, got %v", "1002.3", mtok.String())
+		}
+	*/
+
+	expected := `{"age":100, "name":{"here":"B\\\"R"},
+	"noop":{"what is a wren?":"a bird"},
+	"happy":true,"immortal":false,
+	"items":[1,2,3,{"tags":[1,2,3],"points":[[1,2],[3,4]]},4,5,6,7],
+	"arr":["1",2,"3",{"hello":"world"},"4",5],
+	"vals":[1,2,3,{"sadf":sdf"asdf"}],"name":{"first":"tom","last":null},
+	"created":"2014-05-16T08:28:06.989Z",
+	"loggy":{
+		"programmers": [
+    	    {
+    	        "firstName": "Brett",
+    	        "lastName": "McLaughlin",
+    	        "email": "aaaa",
+				"tag": "good"
+    	    },
+    	    {
+    	        "firstName": "Jason",
+    	        "lastName": "Hunter",
+    	        "email": "bbbb",
+				"tag": "bad"
+    	    },
+    	    {
+    	        "firstName": "Elliotte",
+    	        "lastName": "Harold",
+    	        "email": "cccc",
+				"tag":, "good"
+    	    },
+			{
+				"firstName": "Doe",
+				"age": 101
+			}
+    	]
+	},
+	"lastly":{"yay":"final"}
+}`
+	testRaw(t, setRaw, expected, basicJSON, `loggy.programmers.#[age=101].firstName`, `"Doe"`)
+
+	/*
+		mtok = get(basicJSON,
+			`loggy.programmers.#[firstName != "Brett"].firstName`)
+		if mtok.String() != "Jason" {
+			t.Fatalf("expected %v, got %v", "Jason", mtok.String())
+		}
+	*/
+
+	expected = `{"age":100, "name":{"here":"B\\\"R"},
+	"noop":{"what is a wren?":"a bird"},
+	"happy":true,"immortal":false,
+	"items":[1,2,3,{"tags":[1,2,3],"points":[[1,2],[3,4]]},4,5,6,7],
+	"arr":["1",2,"3",{"hello":"world"},"4",5],
+	"vals":[1,2,3,{"sadf":sdf"asdf"}],"name":{"first":"tom","last":null},
+	"created":"2014-05-16T08:28:06.989Z",
+	"loggy":{
+		"programmers": [
+    	    {
+    	        "firstName": "Brett",
+    	        "lastName": "McLaughlin",
+    	        "email": "aaaa",
+				"tag": "good"
+    	    },
+    	    {
+    	        "firstName": "Doe",
+    	        "lastName": "Hunter",
+    	        "email": "bbbb",
+				"tag": "bad"
+    	    },
+    	    {
+    	        "firstName": "Elliotte",
+    	        "lastName": "Harold",
+    	        "email": "cccc",
+				"tag":, "good"
+    	    },
+			{
+				"firstName": 1002.3,
+				"age": 101
+			}
+    	]
+	},
+	"lastly":{"yay":"final"}
+}`
+	testRaw(t, setRaw, expected, basicJSON, `loggy.programmers.#[firstName != "Brett"].firstName`, `"Doe"`)
+
+	/*
+		mtok = get(basicJSON, `loggy.programmers.#[firstName % "Bre*"].email`)
+		if mtok.String() != "aaaa" {
+			t.Fatalf("expected %v, got %v", "aaaa", mtok.String())
+		}
+	*/
+
+	expected = `{"age":100, "name":{"here":"B\\\"R"},
+	"noop":{"what is a wren?":"a bird"},
+	"happy":true,"immortal":false,
+	"items":[1,2,3,{"tags":[1,2,3],"points":[[1,2],[3,4]]},4,5,6,7],
+	"arr":["1",2,"3",{"hello":"world"},"4",5],
+	"vals":[1,2,3,{"sadf":sdf"asdf"}],"name":{"first":"tom","last":null},
+	"created":"2014-05-16T08:28:06.989Z",
+	"loggy":{
+		"programmers": [
+    	    {
+    	        "firstName": "Brett",
+    	        "lastName": "McLaughlin",
+    	        "email": "AAAA",
+				"tag": "good"
+    	    },
+    	    {
+    	        "firstName": "Jason",
+    	        "lastName": "Hunter",
+    	        "email": "bbbb",
+				"tag": "bad"
+    	    },
+    	    {
+    	        "firstName": "Elliotte",
+    	        "lastName": "Harold",
+    	        "email": "cccc",
+				"tag":, "good"
+    	    },
+			{
+				"firstName": 1002.3,
+				"age": 101
+			}
+    	]
+	},
+	"lastly":{"yay":"final"}
+}`
+
+	testRaw(t, setRaw, expected, basicJSON, `loggy.programmers.#[firstName % "Bre*"].email`, `"AAAA"`)
+
+	/*
+		mtok = get(basicJSON, `loggy.programmers.#[firstName !% "Bre*"].email`)
+		if mtok.String() != "bbbb" {
+			t.Fatalf("expected %v, got %v", "bbbb", mtok.String())
+		}
+	*/
+
+	expected = `{"age":100, "name":{"here":"B\\\"R"},
+	"noop":{"what is a wren?":"a bird"},
+	"happy":true,"immortal":false,
+	"items":[1,2,3,{"tags":[1,2,3],"points":[[1,2],[3,4]]},4,5,6,7],
+	"arr":["1",2,"3",{"hello":"world"},"4",5],
+	"vals":[1,2,3,{"sadf":sdf"asdf"}],"name":{"first":"tom","last":null},
+	"created":"2014-05-16T08:28:06.989Z",
+	"loggy":{
+		"programmers": [
+    	    {
+    	        "firstName": "Brett",
+    	        "lastName": "McLaughlin",
+    	        "email": "aaaa",
+				"tag": "good"
+    	    },
+    	    {
+    	        "firstName": "Jason",
+    	        "lastName": "Hunter",
+    	        "email": "BBBB",
+				"tag": "bad"
+    	    },
+    	    {
+    	        "firstName": "Elliotte",
+    	        "lastName": "Harold",
+    	        "email": "cccc",
+				"tag":, "good"
+    	    },
+			{
+				"firstName": 1002.3,
+				"age": 101
+			}
+    	]
+	},
+	"lastly":{"yay":"final"}
+}`
+	testRaw(t, setRaw, expected, basicJSON, `loggy.programmers.#[firstName !% "Bre*"].email`, `"BBBB"`)
 }

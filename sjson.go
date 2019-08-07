@@ -4,6 +4,7 @@ package sjson
 import (
 	jsongo "encoding/json"
 	"strconv"
+	"strings"
 
 	"github.com/tidwall/gjson"
 )
@@ -54,11 +55,6 @@ func parsePath(path string) (pathResult, error) {
 			r.more = true
 			return r, nil
 		}
-		if path[i] == '*' || path[i] == '?' {
-			return r, &errorType{"wildcard characters not allowed in path"}
-		} else if path[i] == '#' {
-			return r, &errorType{"array access character not allowed in path"}
-		}
 		if path[i] == '\\' {
 			// go into escape mode. this is a slower path that
 			// strips off the escape character from the part.
@@ -84,12 +80,6 @@ func parsePath(path string) (pathResult, error) {
 						r.path = path[i+1:]
 						r.more = true
 						return r, nil
-					} else if path[i] == '*' || path[i] == '?' {
-						return r, &errorType{
-							"wildcard characters not allowed in path"}
-					} else if path[i] == '#' {
-						return r, &errorType{
-							"array access character not allowed in path"}
 					}
 					epart = append(epart, path[i])
 					gpart = append(gpart, path[i])
@@ -258,6 +248,25 @@ func appendRawPaths(buf []byte, jstr string, paths []pathResult, raw string,
 	}
 	if !found {
 		res = gjson.Get(jstr, paths[0].gpart)
+	}
+	if strings.HasPrefix(paths[0].gpart, "#") && strings.HasSuffix(paths[0].gpart, "#") {
+		if len(paths) > 1 && res.IsArray() {
+			buf = append(buf, []byte("[")...)
+			jstr = jstr[1:]
+
+			for _, ares := range res.Array() {
+				var tmpBuf []byte
+				tmpBuf, err = appendRawPaths(tmpBuf, ares.Raw, paths[1:], raw,
+					stringify, del)
+
+				start := strings.Index(jstr, ares.Raw)
+				end := len(ares.Raw)
+				jstr = jstr[:start] + string(tmpBuf) + jstr[start+end:]
+
+			}
+			buf = append(buf, []byte(jstr)...)
+			return buf, nil
+		}
 	}
 	if res.Index > 0 {
 		if len(paths) > 1 {
