@@ -249,20 +249,31 @@ func appendRawPaths(buf []byte, jstr string, paths []pathResult, raw string,
 	if !found {
 		res = gjson.Get(jstr, paths[0].gpart)
 	}
-	if strings.HasPrefix(paths[0].gpart, "#") && strings.HasSuffix(paths[0].gpart, "#") {
-		if len(paths) > 1 && res.IsArray() {
-			buf = append(buf, []byte("[")...)
-			jstr = jstr[1:]
-
+	if strings.HasPrefix(paths[0].gpart, "#") && strings.HasSuffix(paths[0].gpart, "#") && res.IsArray() {
+		if len(paths) > 1 {
 			for _, ares := range res.Array() {
 				var tmpBuf []byte
 				tmpBuf, err = appendRawPaths(tmpBuf, ares.Raw, paths[1:], raw,
 					stringify, del)
-
 				start := strings.Index(jstr, ares.Raw)
 				end := len(ares.Raw)
 				jstr = jstr[:start] + string(tmpBuf) + jstr[start+end:]
 
+			}
+			buf = append(buf, []byte(jstr)...)
+			return buf, nil
+		}
+		if del {
+			for _, ares := range res.Array() {
+				start := strings.Index(jstr, ares.Raw)
+				end := len(ares.Raw)
+				if jstr[:start][start-1:] == "," {
+					start--
+					end++
+				} else if jstr[start+end:][:1] == "," {
+					end++
+				}
+				jstr = jstr[:start] + jstr[start+end:]
 			}
 			buf = append(buf, []byte(jstr)...)
 			return buf, nil

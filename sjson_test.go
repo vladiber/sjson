@@ -336,9 +336,16 @@ func TestDeleteArrayFirstMatch(t *testing.T) {
 func TestDeleteArrayAllMatches(t *testing.T) {
 	// You can also query an array for find all matches with #(...)#
 
+	testRaw(t, setDelete, `["111111111","22222222"]`, `["111111111","22222222","333"]`, `#[="333"]#`, nil)
+	testRaw(t, setDelete, `["22222222","333"]`, `["111111111","22222222","333"]`, `#[="111111111"]#`, nil)
+	testRaw(t, setDelete, `["111111111","333"]`, `["111111111","22222222","333"]`, `#[="22222222"]#`, nil)
+
 	json := `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","last":"Craig","age":68,"nets":["fb","tw"]},{"first":"Jane","last":"Murphy","age":47,"nets":["ig","tw"]}]}`
 	expected := `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]},{"first":"Roger","age":68,"nets":["fb","tw"]},{"first":"Jane","age":47,"nets":["ig","tw"]}]}`
 	testRaw(t, setDelete, expected, json, `friends.#[age>45]#.last`, nil)
+
+	expected = `{"friends":[{"first":"Dale","last":"Murphy","age":44,"nets":["ig","fb","tw"]}]}`
+	testRaw(t, setDelete, expected, json, `friends.#[age>45]#`, nil)
 
 }
 
