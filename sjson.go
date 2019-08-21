@@ -3,9 +3,11 @@ package sjson
 
 import (
 	jsongo "encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/tidwall/gjson"
 )
 
@@ -249,6 +251,7 @@ func appendRawPaths(buf []byte, jstr string, paths []pathResult, raw string,
 	if !found {
 		res = gjson.Get(jstr, paths[0].gpart)
 	}
+
 	if strings.HasPrefix(paths[0].gpart, "#") && strings.HasSuffix(paths[0].gpart, "#") && res.IsArray() {
 		if len(paths) > 1 {
 			for _, ares := range res.Array() {
@@ -322,20 +325,28 @@ func appendRawPaths(buf []byte, jstr string, paths []pathResult, raw string,
 	}
 	n, numeric := atoui(paths[0])
 	isempty := true
+
 	for i := 0; i < len(jstr); i++ {
 		if jstr[i] > ' ' {
 			isempty = false
 			break
 		}
 	}
+
 	if isempty {
-		if numeric {
+		fmt.Println(numeric, paths[0].part, jstr, paths[0].part)
+		spew.Dump(paths)
+
+		if numeric || paths[0].part == "-1" {
 			jstr = "[]"
 		} else {
 			jstr = "{}"
 		}
+
 	}
+
 	jsres := gjson.Parse(jstr)
+
 	if jsres.Type != gjson.JSON {
 		if numeric {
 			jstr = "[]"
@@ -345,6 +356,7 @@ func appendRawPaths(buf []byte, jstr string, paths []pathResult, raw string,
 		jsres = gjson.Parse(jstr)
 	}
 	var comma bool
+
 	for i := 1; i < len(jsres.Raw); i++ {
 		if jsres.Raw[i] <= ' ' {
 			continue

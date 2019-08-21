@@ -564,3 +564,12 @@ func TestBasic2(t *testing.T) {
 }`
 	testRaw(t, setRaw, expected, basicJSON, `loggy.programmers.#[firstName !% "Bre*"].email`, `"BBBB"`)
 }
+
+func TestCreateArrayMinus1(t *testing.T) {
+	json := ""
+	//testRaw(t, setRaw, `["bob"]`, json, "-1", `"bob"`)
+	//testRaw(t, setRaw, `{"-1":"bob"}`, json, ":-1", `"bob"`)
+
+	testRaw(t, setRaw, `["alice"]`, json, "0", `"alice"`)
+	testRaw(t, setRaw, `{"0":"alice"}`, json, ":0", `"alice"`)
+}
